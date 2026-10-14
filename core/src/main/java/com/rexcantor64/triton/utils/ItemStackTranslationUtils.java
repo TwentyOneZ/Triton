@@ -404,6 +404,10 @@ public class ItemStackTranslationUtils {
         if (Triton.get() == null || Triton.get().getConfig().getLogLevel() < 2) {
             return;
         }
+        if (getCurrentComponent(item, ComponentTypes.ENCHANTMENTS).map(ItemEnchantments::isEmpty).orElse(true)
+                && getCurrentComponent(item, ComponentTypes.STORED_ENCHANTMENTS).map(ItemEnchantments::isEmpty).orElse(true)) {
+            return;
+        }
         try {
             Triton.get().getLogger().logTrace(
                     "[EnchantAudit] PacketEvents phase=%1 type=%2 lang=%3 modified=%4 translateLore=%5 translateBook=%6 lore=%7 enchantments=%8 storedEnchantments=%9 tooltipDisplay=%10",
@@ -444,7 +448,7 @@ public class ItemStackTranslationUtils {
         int count = 0;
         for (val enchantment : enchantments) {
             if (count < 8) {
-                entries.add(String.valueOf(enchantment.getKey()) + "=" + enchantment.getValue());
+                entries.add(enchantment.getKey().getName() + "=" + enchantment.getValue());
             }
             count++;
         }
