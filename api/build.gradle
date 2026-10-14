@@ -16,6 +16,8 @@ dependencies {
 }
 
 java {
+    // Compile against Paper's Java 25 API while retaining the upstream Java 21 bytecode baseline.
+    disableAutoTargetJvm()
     withJavadocJar()
     withSourcesJar()
 }
@@ -40,8 +42,8 @@ javadoc {
     // Disable the crazy super-strict doclint tool
     options.addStringOption('Xdoclint:none', '-quiet')
 
-    // Mark sources as Java 25 source compatible
-    options.source = '25'
+    // Mark sources as Java 21 source compatible
+    options.source = '21'
 }
 
 publishing {

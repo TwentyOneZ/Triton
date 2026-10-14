@@ -69,13 +69,13 @@ public class ItemStackTranslationUtils {
             return item;
         }
         if (MinecraftVersion.v1_20_5.atOrAbove()) { // 1.20.6+
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantDebug] Spigot item translation using data components for %1",
                     item.getType()
             );
             return translateItemStackPost_1_20_6(item, languagePlayer, translateBooks, true);
         } else {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantDebug] Spigot item translation using legacy NBT for %1",
                     item.getType()
             );
@@ -160,7 +160,7 @@ public class ItemStackTranslationUtils {
         Optional<WrappedPatchedDataComponentMap> componentMapOpt = WrappedPatchedDataComponentMap.fromItemStack(item);
         if (!componentMapOpt.isPresent()) {
             // item stack is not a craft item stack, delegate to the bukkit translator
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantDebug] No CraftItemStack data component map for %1; delegating to Bukkit ItemMeta",
                     item.getType()
             );
@@ -387,8 +387,11 @@ public class ItemStackTranslationUtils {
             boolean translateLore,
             @NotNull WrappedPatchedDataComponentMap componentMap
     ) {
+        if (Triton.get().getConfig().getLogLevel() < 2) {
+            return;
+        }
         try {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=data-components type=%2 amount=%3 itemId=%4 lang=%5 translateLore=%6 translateBooks=%7 lore=%8 enchantments=%9 storedEnchantments=%10 tooltipDisplay=%11 bukkitMeta=%12 componentMap=%13",
                     phase,
                     item.getType(),
@@ -405,7 +408,7 @@ public class ItemStackTranslationUtils {
                     limit(String.valueOf(componentMap.getHandle()), 700)
             );
         } catch (Exception e) {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=data-components failed to inspect %2: %3",
                     phase,
                     item.getType(),
@@ -415,8 +418,11 @@ public class ItemStackTranslationUtils {
     }
 
     private static void logBukkitItemAudit(@NotNull String phase, @NotNull ItemStack item, @NotNull Localized languagePlayer) {
+        if (Triton.get().getConfig().getLogLevel() < 2) {
+            return;
+        }
         try {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=bukkit-meta type=%2 amount=%3 itemId=%4 lang=%5 bukkitMeta=%6",
                     phase,
                     item.getType(),
@@ -426,7 +432,7 @@ public class ItemStackTranslationUtils {
                     describeBukkitMeta(item)
             );
         } catch (Exception e) {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=bukkit-meta failed to inspect %2: %3",
                     phase,
                     item.getType(),
@@ -441,8 +447,11 @@ public class ItemStackTranslationUtils {
             @NotNull Localized languagePlayer,
             @NotNull NbtCompound compound
     ) {
+        if (Triton.get().getConfig().getLogLevel() < 2) {
+            return;
+        }
         try {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=legacy-nbt type=%2 amount=%3 itemId=%4 lang=%5 display=%6 enchantments=%7 storedEnchantments=%8 legacyEnch=%9 hideFlags=%10 bukkitMeta=%11",
                     phase,
                     item.getType(),
@@ -457,7 +466,7 @@ public class ItemStackTranslationUtils {
                     describeBukkitMeta(item)
             );
         } catch (Exception e) {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] ProtocolLib phase=%1 path=legacy-nbt failed to inspect %2: %3",
                     phase,
                     item.getType(),

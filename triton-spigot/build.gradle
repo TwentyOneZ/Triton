@@ -5,6 +5,11 @@ plugins {
 
 group = 'com.rexcantor64.triton'
 
+java {
+    // Paper 26.3 requires Java 25; the JDK 25 toolchain can still emit Java 21 bytecode.
+    disableAutoTargetJvm()
+}
+
 test {
     useJUnitPlatform()
 }

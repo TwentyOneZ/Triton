@@ -15,6 +15,10 @@ List conflictingPlugins = ['Citizens']
 apply plugin: 'de.eldoria.plugin-yml.bukkit'
 group = 'com.rexcantor64.triton'
 
+java {
+    disableAutoTargetJvm()
+}
+
 dependencies {
     compileOnly project(':core:triton-core-loader')
     compileOnly libs.paper.api
