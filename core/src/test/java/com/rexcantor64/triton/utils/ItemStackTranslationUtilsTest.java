@@ -5,12 +5,15 @@ import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.component.ComponentType;
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemEnchantments;
+import com.github.retrooper.packetevents.protocol.component.builtin.item.ArmorTrim;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemLore;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemTooltipDisplay;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentType;
 import com.github.retrooper.packetevents.protocol.item.enchantment.type.EnchantmentTypes;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
+import com.github.retrooper.packetevents.protocol.item.trimmaterial.TrimMaterials;
+import com.github.retrooper.packetevents.protocol.item.trimpattern.TrimPatterns;
 import com.rexcantor64.triton.api.language.Language;
 import com.rexcantor64.triton.api.language.Localized;
 import com.rexcantor64.triton.api.language.TranslationManager;
@@ -91,6 +94,117 @@ class ItemStackTranslationUtilsTest {
         assertTrue(original.getComponent(ComponentTypes.TOOLTIP_DISPLAY).orElseThrow().getHiddenComponents().isEmpty());
         assertEquals(2, translated.getAmount());
         assertEquals("Afiação III", ComponentUtils.componentToString(lore(translator.translateItem(original, locale).getModified()).getFirst()));
+    }
+
+    @Test
+    void translatesExistingNativeLoreWhenVanillaEnchantmentsAreHidden() {
+        Map<String, Map<String, String>> names = Map.of(
+                "pt_BR", Map.of("Enchantments.sharpness.name", "Afiação", "Enchantments.knockback.name", "Repulsão"),
+                "es_MX", Map.of("Enchantments.sharpness.name", "Filo", "Enchantments.knockback.name", "Empuje"));
+        TranslationManager translations = (TranslationManager) Proxy.newProxyInstance(
+                TranslationManager.class.getClassLoader(), new Class<?>[]{TranslationManager.class},
+                (proxy, method, args) -> Optional.ofNullable(names.get(((Localized) args[0]).getLanguageId()).get(args[1]))
+                        .map(Component::text));
+        ItemStackTranslationUtils translator = new ItemStackTranslationUtils(
+                new MockAdventureParser(), new DefaultFeatureSyntax(), false, translations);
+        ItemStack original = enchanted(ComponentTypes.ENCHANTMENTS,
+                Map.of(EnchantmentTypes.SHARPNESS, 5, EnchantmentTypes.KNOCKBACK, 1));
+        Component sharpness = Component.empty().append(Component.empty().color(NamedTextColor.GRAY)
+                .append(Component.translatable("enchantment.minecraft.sharpness"))
+                .append(Component.text(" ")).append(Component.translatable("enchantment.level.5")));
+        Component knockback = Component.empty().append(Component.translatable("enchantment.minecraft.knockback")
+                .color(NamedTextColor.GRAY).append(Component.text(" "))
+                .append(Component.translatable("enchantment.level.1")));
+        List<Component> originalLore = List.of(sharpness, knockback, Component.text("Silent Blade"));
+        original.setComponent(ComponentTypes.LORE, new ItemLore(originalLore));
+        ItemTooltipDisplay display = new ItemTooltipDisplay(false, Set.of(ComponentTypes.ENCHANTMENTS));
+        original.setComponent(ComponentTypes.TOOLTIP_DISPLAY, display);
+        for (String id : List.of("pt_BR", "es_MX")) {
+            ItemStack translated = translator.translateItem(original, locale(id)).getModified();
+            assertNotNull(translated);
+            assertEquals(3, lore(translated).size());
+            assertTrue(ComponentUtils.componentToString(lore(translated).getFirst()).startsWith(names.get(id).get("Enchantments.sharpness.name")));
+            assertTrue(ComponentUtils.componentToString(lore(translated).get(1)).startsWith(names.get(id).get("Enchantments.knockback.name")));
+            assertEquals(Component.text("Silent Blade"), lore(translated).get(2));
+            assertEquals(display, translated.getComponent(ComponentTypes.TOOLTIP_DISPLAY).orElseThrow());
+            assertEquals(original.getComponent(ComponentTypes.ENCHANTMENTS), translated.getComponent(ComponentTypes.ENCHANTMENTS));
+        }
+        assertEquals(originalLore, lore(original));
+    }
+
+    @Test
+    void translatesNamespacedCustomNamesInExistingLore() {
+        EnchantmentType custom = (EnchantmentType) Proxy.newProxyInstance(EnchantmentType.class.getClassLoader(),
+                new Class<?>[]{EnchantmentType.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "getDescription" -> Component.text("[lang]Enchantments.mythic:prismatic.name[/lang]");
+                    case "getName" -> new com.github.retrooper.packetevents.resources.ResourceLocation("mythic:prismatic");
+                    case "hashCode" -> 37;
+                    case "equals" -> proxy == args[0];
+                    default -> null;
+                });
+        TranslationManager translations = (TranslationManager) Proxy.newProxyInstance(
+                TranslationManager.class.getClassLoader(), new Class<?>[]{TranslationManager.class},
+                (proxy, method, args) -> "Enchantments.mythic:prismatic.name".equals(args[1])
+                        ? Optional.of(Component.text("Prismático")) : Optional.empty());
+        ItemStackTranslationUtils translator = new ItemStackTranslationUtils(
+                new MockAdventureParser(), new DefaultFeatureSyntax(), false, translations);
+        ItemStack original = enchanted(ComponentTypes.ENCHANTMENTS, Map.of(custom, 5));
+        Component line = Component.empty().append(custom.getDescription().color(NamedTextColor.GRAY))
+                .append(Component.text(" V"));
+        original.setComponent(ComponentTypes.LORE, new ItemLore(List.of(line, line, Component.text("Unrelated lore"))));
+        original.setComponent(ComponentTypes.TOOLTIP_DISPLAY,
+                new ItemTooltipDisplay(false, Set.of(ComponentTypes.ENCHANTMENTS)));
+        ItemStack translated = translator.translateItem(original, locale("pt_BR")).getModified();
+        assertEquals(2, lore(translated).size());
+        assertEquals("Prismático V", ComponentUtils.componentToString(lore(translated).getFirst()));
+        assertEquals(Component.text("Unrelated lore"), lore(translated).get(1));
+        assertEquals(3, lore(original).size());
+        assertEquals(original.getComponent(ComponentTypes.ENCHANTMENTS), translated.getComponent(ComponentTypes.ENCHANTMENTS));
+        assertFalse(translator.translateItem(translated, locale("pt_BR")).isModified());
+    }
+
+    @Test
+    void keepsOriginallyHiddenTrimmedArmorWithoutLoreHidden() {
+        ItemStack original = ItemStack.builder().type(ItemTypes.GOLDEN_CHESTPLATE).build();
+        ArmorTrim trim = new ArmorTrim(TrimMaterials.RESIN, TrimPatterns.SILENCE);
+        original.setComponent(ComponentTypes.TRIM, trim);
+        original.setComponent(ComponentTypes.ENCHANTMENTS, new ItemEnchantments(Map.of(EnchantmentTypes.MENDING, 3,
+                EnchantmentTypes.UNBREAKING, 3, EnchantmentTypes.ALL_DAMAGE_PROTECTION, 4)));
+        original.unsetComponent(ComponentTypes.LORE);
+        original.setComponent(ComponentTypes.TOOLTIP_DISPLAY,
+                new ItemTooltipDisplay(false, Set.of(ComponentTypes.ENCHANTMENTS)));
+        assertFalse(handler.translateItem(original, locale).isModified());
+        assertEquals(trim, original.getComponent(ComponentTypes.TRIM).orElseThrow());
+    }
+
+    @Test
+    void translatesLegacyKeysOnMultipleEnchantmentsAndPreservesGoldenArmorTrim() {
+        Map<String, Map<String, String>> names = Map.of(
+                "pt_BR", Map.of("Enchantments.protection.name", "Proteção", "Enchantments.unbreaking.name", "Durabilidade"),
+                "es_MX", Map.of("Enchantments.protection.name", "Protección", "Enchantments.unbreaking.name", "Irrompibilidad"));
+        TranslationManager translations = (TranslationManager) Proxy.newProxyInstance(
+                TranslationManager.class.getClassLoader(), new Class<?>[]{TranslationManager.class},
+                (proxy, method, args) -> Optional.ofNullable(names.get(((Localized) args[0]).getLanguageId()).get(args[1]))
+                        .map(Component::text));
+        ItemStackTranslationUtils translator = new ItemStackTranslationUtils(
+                new MockAdventureParser(), new DefaultFeatureSyntax(), false, translations);
+        ItemStack original = ItemStack.builder().type(ItemTypes.GOLDEN_CHESTPLATE).build();
+        ArmorTrim trim = new ArmorTrim(TrimMaterials.AMETHYST, TrimPatterns.SENTRY);
+        original.setComponent(ComponentTypes.TRIM, trim);
+        Map<EnchantmentType, Integer> levels = new LinkedHashMap<>();
+        levels.put(EnchantmentTypes.ALL_DAMAGE_PROTECTION, 4);
+        levels.put(EnchantmentTypes.UNBREAKING, 3);
+        original.setComponent(ComponentTypes.ENCHANTMENTS, new ItemEnchantments(levels));
+        for (String id : List.of("pt_BR", "es_MX")) {
+            ItemStack translated = translator.translateItem(original, locale(id)).getModified();
+            assertEquals(2, lore(translated).size());
+            assertTrue(ComponentUtils.componentToString(lore(translated).getFirst()).startsWith(names.get(id).get("Enchantments.protection.name")));
+            assertTrue(ComponentUtils.componentToString(lore(translated).get(1)).startsWith(names.get(id).get("Enchantments.unbreaking.name")));
+            assertEquals(original.getComponent(ComponentTypes.ENCHANTMENTS), translated.getComponent(ComponentTypes.ENCHANTMENTS));
+            assertEquals(trim, translated.getComponent(ComponentTypes.TRIM).orElseThrow());
+        }
+        assertTrue(lore(original).isEmpty());
+        assertTrue(original.getComponent(ComponentTypes.TOOLTIP_DISPLAY).orElseThrow().getHiddenComponents().isEmpty());
     }
 
     @Test
