@@ -7,11 +7,13 @@ import com.github.retrooper.packetevents.event.UserDisconnectEvent;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import com.github.retrooper.packetevents.wrapper.login.client.WrapperLoginClientLoginStart;
 import com.rexcantor64.triton.Triton;
 import com.rexcantor64.triton.packetinterceptor.handlers.ActionBarPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.BossBarPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.ChatPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.DeathScreenPacketHandler;
+import com.rexcantor64.triton.packetinterceptor.handlers.DialogPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.DisconnectPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.EntityPacketHandler;
 import com.rexcantor64.triton.packetinterceptor.handlers.GuiPacketHandler;
@@ -88,7 +90,9 @@ public class PacketEventsListener implements PacketListener {
         }
         if (config.isKick()) {
             val disconnectHandler = new DisconnectPacketHandler(parser, config);
-            updatedHandlers.put(PacketType.Play.Server.DISCONNECT, disconnectHandler::onDisconnectPacket);
+            updatedHandlers.put(PacketType.Login.Server.DISCONNECT, disconnectHandler::onLoginDisconnectPacket);
+            updatedHandlers.put(PacketType.Configuration.Server.DISCONNECT, disconnectHandler::onConfigDisconnectPacket);
+            updatedHandlers.put(PacketType.Play.Server.DISCONNECT, disconnectHandler::onPlayDisconnectPacket);
         }
         if (config.isResourcePackPrompt()) {
             val resourcePackHandler = new ResourcePackPacketHandler(parser, config);
@@ -154,6 +158,14 @@ public class PacketEventsListener implements PacketListener {
             updatedHandlers.put(PacketType.Play.Server.MERCHANT_OFFERS, itemHandler::onMerchantOffersPacket);
             updatedHandlers.put(PacketType.Play.Server.CLOSE_WINDOW, itemHandler::onServerCloseWindowPacket);
             updatedReceiveHandlers.put(PacketType.Play.Client.CLOSE_WINDOW, itemHandler::onClientCloseWindowPacket);
+            updatedHandlers.put(PacketType.Play.Server.RECIPE_BOOK_ADD, itemHandler::onRecipeBookAddPacket);
+            updatedHandlers.put(PacketType.Play.Server.RECIPE_BOOK_REMOVE, itemHandler::onRecipeBookRemovePacket);
+            updatedHandlers.put(PacketType.Play.Server.CRAFT_RECIPE_RESPONSE, itemHandler::onCraftRecipeResponsePacket);
+        }
+        if (config.isDialogs()) {
+            val dialogHandler = new DialogPacketHandler(parser, config);
+            updatedHandlers.put(PacketType.Configuration.Server.SHOW_DIALOG, dialogHandler::onConfigShowDialogPacket);
+            updatedHandlers.put(PacketType.Play.Server.SHOW_DIALOG, dialogHandler::onPlayShowDialogPacket);
         }
 
         sendHandlers = Collections.unmodifiableMap(updatedHandlers);
@@ -166,14 +178,26 @@ public class PacketEventsListener implements PacketListener {
 
         val handler = sendHandlers.get(type);
         if (handler != null) {
-            val languagePlayer = Triton.get().getPlayerManager().get(event.getUser().getUUID());
-            handler.accept(event, languagePlayer);
+            val uuid = event.getUser().getUUID();
+            if (uuid != null) {
+                val languagePlayer = Triton.get().getPlayerManager().get(uuid);
+                handler.accept(event, languagePlayer);
+            }
         }
     }
 
     @Override
     public void onPacketReceive(PacketReceiveEvent event) {
         val type = event.getPacketType();
+
+        if (type == PacketType.Login.Client.LOGIN_START) {
+            val packet = new WrapperLoginClientLoginStart(event);
+            packet.getPlayerUUID().ifPresent(uuid -> {
+                event.getUser().getProfile().setUUID(uuid);
+                val languagePlayer = Triton.get().getPlayerManager().get(event.getUser().getUUID());
+                languagePlayer.increaseConnectionCount();
+            });
+        }
 
         val handler = receiveHandlers.get(type);
         if (handler != null) {
@@ -186,8 +210,13 @@ public class PacketEventsListener implements PacketListener {
     public void onUserDisconnect(UserDisconnectEvent event) {
         // force language player to be unregistered
         val uuid = event.getUser().getUUID();
-        if (uuid != null) {
-            Triton.get().getPlayerManager().unregisterPlayer(uuid);
+        val playerManager = Triton.get().getPlayerManager();
+        if (uuid != null && playerManager.hasPlayer(uuid)) {
+            val lp = playerManager.get(event.getUser().getUUID());
+            lp.decreaseConnectionCount();
+            if (lp.getConnectionCount() <= 0) {
+                playerManager.unregisterPlayer(uuid);
+            }
         }
     }
 }

@@ -14,12 +14,13 @@ dependencies {
     compileOnly project(':api')
     compileOnly project(':core')
     implementation project(':spigot-legacy')
+    implementation project(':triton-spigot:triton-spigot-common')
+    implementation project(':triton-spigot:triton-spigot-folia')
 
     compileOnly libs.paper.api
 
     compileOnly libs.adventure.serializer.gson
     compileOnly libs.adventure.serializer.legacy
-    compileOnly libs.adventure.serializer.bungeecord
 
     compileOnly libs.protocollib
     compileOnly libs.placeholderapi

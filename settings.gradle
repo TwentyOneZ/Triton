@@ -1,5 +1,7 @@
 rootProject.name = 'Triton'
 include 'api'
+include 'api:impl'
+findProject(':api:impl')?.name = 'api-impl'
 include 'spigot-legacy'
 include 'core'
 include 'triton-bungeecord'
@@ -13,6 +15,10 @@ include 'triton-spigot:loader'
 findProject(':triton-spigot:loader')?.name = 'triton-spigot-loader'
 include 'triton-velocity:loader'
 findProject(':triton-velocity:loader')?.name = 'triton-velocity-loader'
+include 'triton-spigot:folia'
+findProject(':triton-spigot:folia')?.name = 'triton-spigot-folia'
+include 'triton-spigot:common'
+findProject(':triton-spigot:common')?.name = 'triton-spigot-common'
 
 dependencyResolutionManagement {
     versionCatalogs {

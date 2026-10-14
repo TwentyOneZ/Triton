@@ -4,6 +4,9 @@ import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.recipe.data.MerchantItemCost;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCraftRecipeResponse;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerRecipeBookAdd;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerRecipeBookRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetCursorItem;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMerchantOffers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPlayerInventory;
@@ -13,20 +16,25 @@ import com.rexcantor64.triton.config.MainConfig;
 import com.rexcantor64.triton.language.parser.MessageParser;
 import com.rexcantor64.triton.player.TritonLanguagePlayer;
 import com.rexcantor64.triton.utils.ItemStackTranslationUtils;
+import com.rexcantor64.triton.utils.RecipeTranslationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor
+@NotNullByDefault
 public class ItemPacketHandler {
 
     private final ItemStackTranslationUtils itemHandler;
+    private final RecipeTranslationUtils recipeHandler;
     private final boolean translateInventoryItems;
 
     public ItemPacketHandler(@NotNull MessageParser parser, @NotNull MainConfig config) {
         this.itemHandler = new ItemStackTranslationUtils(parser, config.getItemsSyntax(), config.isBooks());
+        this.recipeHandler = new RecipeTranslationUtils(parser, config.getItemsSyntax());
         this.translateInventoryItems = config.isInventoryItems();
     }
 
@@ -143,4 +151,38 @@ public class ItemPacketHandler {
         setter.accept(result.getModified());
         return true;
     }
+    public void onRecipeBookAddPacket(PacketSendEvent event, TritonLanguagePlayer<?> languagePlayer) {
+        val packet = new WrapperPlayServerRecipeBookAdd(event);
+
+        for (val entry : packet.getEntries()) {
+            this.recipeHandler.translateRecipeDisplayEntry(entry.getContents(), languagePlayer).ifPresentOrElse(
+                    contents -> {
+                        languagePlayer.getPacketEventsRefresh().saveRecipe(entry.getContents());
+                        entry.setContents(contents);
+                        event.markForReEncode(true);
+                    },
+                    () -> languagePlayer.getPacketEventsRefresh().discardRecipe(entry.getContents().getId().getId())
+            );
+        }
+    }
+
+    public void onRecipeBookRemovePacket(PacketSendEvent event, TritonLanguagePlayer<?> languagePlayer) {
+        val packet = new WrapperPlayServerRecipeBookRemove(event);
+
+        for (val id : packet.getRecipeIds()) {
+            languagePlayer.getPacketEventsRefresh().discardRecipe(id.getId());
+        }
+    }
+
+    public void onCraftRecipeResponsePacket(PacketSendEvent event, TritonLanguagePlayer<?> languagePlayer) {
+        val packet = new WrapperPlayServerCraftRecipeResponse(event);
+
+        this.recipeHandler.translateRecipeDisplay(packet.getRecipeDisplay(), languagePlayer)
+                .ifPresent(newRecipe -> {
+                    packet.setRecipeDisplay(newRecipe);
+                    event.markForReEncode(true);
+                });
+    }
+
+
 }
