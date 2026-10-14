@@ -80,7 +80,7 @@ Artefato instalável: **`build/libs/Triton-4.2.0-all.jar`**. O JAR sem `-all` é
 ## Validação em 2026-10-13
 
 - Build completo com Gradle Wrapper e JDK 25.
-- 144 testes aprovados, zero falhas; um teste de banners (`PatternsTest`) já desativado pelo upstream.
+- 145 testes aprovados, zero falhas; um teste de banners (`PatternsTest`) já desativado pelo upstream.
 - 14 execuções de regressão adicionais: seis variantes de idioma, livros, maldição, encantamento customizado, placeholders de nome/lore, visibilidade moderna e antiga, deduplicação, ofertas comerciais e receitas.
 - Dados independentes em `en_US`, `pt_BR`, `es_MX`, `ru_RU` e `fr_FR`; também coberta a grafia `ft_FR` informada inicialmente. Nenhuma dependência de arquivos ou banco do GoianiaSMP.
 - Inicialização real no Paper **26.3-181-main@cc7ee9a**, com Java 25, em instância isolada, armazenamento local e mundo temporário.
@@ -93,6 +93,14 @@ Não foi feito teste visual com cliente Minecraft conectado, nem teste de ida e 
 ### Regressão dos itens de produção
 
 A reprodução adicional utilizou cópias exportadas via Denizen da espada de ouro e da armadura de ouro com trim resin/silence, com o datapack MythicEnchantments real, no Paper isolado. A espada passou em `en_GB`, `pt_BR`, `es_MX`, `ru_RU` e `fr_FR`: tradução da lore existente, oito encantamentos distintos após remover a linha repetida de Silent Blade, preservação dos encantamentos e dos bytes originais. A armadura original já tinha `ENCHANTMENTS` oculto e lore removida antes da atualização; permanece oculta por definição. Numa cópia com essa ocultação removida, os encantamentos são apresentados, preservando trim, atributos e níveis. Nenhum item do jogador foi alterado, e o servidor de produção não foi reiniciado nem recarregado. Esses fixtures externos não são dependências da suíte versionada.
+
+### Diagnóstico e recuperação de visibilidade legada
+
+O código local 4.0.2 (`0ee8cea`) já gerava lore e ocultava `ENCHANTMENTS`. Sua condição moderna era `showInTooltip || !hiddenInTooltipDisplay`; isso podia gerar lore mesmo em itens com a marca de ocultação persistida. A regra atual respeita o estado original. Uma marca antiga não permite inferir automaticamente a intenção do jogador: não exponha todos os itens ocultos como migração automática.
+
+Após confirmação do dono, foram recuperados seis itens específicos removendo somente a ocultação de encantamentos. Snapshots completos, round-trip nativo e comparação estrutural dos componentes foram validados antes e depois da aplicação. Foram preservados encantamentos, níveis, trims, atributos, custom data, nomes e lore. A auditoria em produção confirmou lore gerada na cópia enviada: 7 linhas no peitoral, 7 nas calças, 9 nas botas, 4 na pá e 6 na enxada; o capacete recebeu nove encantamentos além da lore própria. Nenhum restart/reload foi necessário para essa recuperação. A origem histórica da gravação da marca não foi reproduzida; o código de saída 4.0.2 oculta a cópia de pacote, e isso por si só não comprova como ela foi persistida.
+
+Para investigar sem reload, consulte `triton loglevel`, ative `triton loglevel 2` por um intervalo curto, atualize o inventário e restaure o nível anterior. `[EnchantAudit]` registra antes/depois, idioma, quantidade de linhas, IDs/níveis e `TOOLTIP_DISPLAY`; itens sem encantamentos são ignorados. Corrigida a substituição de argumentos de dois dígitos nos loggers Java/SLF4J: `%1` não pode consumir `%10`, `%11` etc. O novo JAR de diagnóstico exige instalação normal para disponibilizar esses ajustes; os comandos de log não o instalam.
 
 ## Arquivos e futuros merges
 

@@ -39,7 +39,7 @@ public class JavaLogger implements TritonLogger {
     }
 
     private String parseMessage(@NonNull String message, @NonNull Object... arguments) {
-        for (int i = 0; i < arguments.length; ++i)
+        for (int i = arguments.length - 1; i >= 0; --i)
             message = message.replace("%" + (i + 1), String.valueOf(arguments[i]));
         return message;
     }
