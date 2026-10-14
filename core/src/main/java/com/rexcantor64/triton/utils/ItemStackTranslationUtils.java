@@ -21,18 +21,22 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.TranslationArgument;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -112,11 +116,22 @@ public class ItemStackTranslationUtils {
         }
 
         val lore = loreOpt.get();
+        val enchantmentTranslations = getEnchantmentLoreTranslations(item, locale);
         AtomicBoolean loreChanged = new AtomicBoolean(false);
         List<Component> newLines = new ArrayList<>();
+        Set<Component> seenEnchantmentLines = new HashSet<>();
         for (Component line : lore.getLines()) {
+            val translatedLine = translateEnchantmentLore(line, enchantmentTranslations);
+            if (!translatedLine.equals(line)) {
+                loreChanged.set(true);
+            }
+            if (!enchantmentTranslations.isEmpty() && containsEnchantmentLore(line, enchantmentTranslations)
+                    && !seenEnchantmentLines.add(translatedLine)) {
+                loreChanged.set(true);
+                continue;
+            }
             parser.translateComponent(
-                            line,
+                            translatedLine,
                             locale,
                             this.syntax
                     )
@@ -129,13 +144,67 @@ public class ItemStackTranslationUtils {
                         );
                         loreChanged.set(true);
                     })
-                    .ifUnchanged(() -> newLines.add(line))
+                    .ifUnchanged(() -> newLines.add(translatedLine))
                     .ifToRemove(() -> loreChanged.set(true));
         }
         if (!loreChanged.get()) {
             return;
         }
         item.willModify().setComponent(ComponentTypes.LORE, new ItemLore(newLines));
+    }
+
+    private Map<Component, Component> getEnchantmentLoreTranslations(ModifiableItemStack item, Localized locale) {
+        Map<Component, Component> result = new HashMap<>();
+        if (translations == null) {
+            return result;
+        }
+        for (val type : List.of(ComponentTypes.ENCHANTMENTS, ComponentTypes.STORED_ENCHANTMENTS)) {
+            getCurrentComponent(item, type).ifPresent(enchantments -> {
+                for (val entry : enchantments) {
+                    val enchantment = entry.getKey();
+                    val description = enchantment.getDescription();
+                    if (description instanceof TranslatableComponent
+                            || description instanceof TextComponent && !((TextComponent) description).content().isEmpty()) {
+                        getTranslatedEnchantmentDescription(enchantment, locale).ifPresent(translated -> {
+                            result.put(description.style(Style.empty()).children(List.of()), translated);
+                            // ponytail: old plain lore has no IDs; match exact registered names on this item, prefer translatable descriptions for new lore.
+                            if (description instanceof TextComponent && Triton.get() != null) {
+                                for (val language : Triton.get().getConfig().getLanguages()) {
+                                    getTranslatedEnchantmentDescription(enchantment, () -> language).ifPresent(source -> {
+                                        val text = ComponentUtils.componentToString(source);
+                                        if (!text.isBlank()) {
+                                            result.put(Component.text(text), translated);
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        return result;
+    }
+
+    private boolean containsEnchantmentLore(Component line, Map<Component, Component> replacements) {
+        return replacements.containsKey(line.style(Style.empty()).children(List.of()))
+                || line.children().stream().anyMatch(child -> containsEnchantmentLore(child, replacements));
+    }
+
+    private Component translateEnchantmentLore(Component line, Map<Component, Component> replacements) {
+        if (replacements.isEmpty()) {
+            return line;
+        }
+        val children = line.children().stream().map(child -> translateEnchantmentLore(child, replacements)).toList();
+        val translated = replacements.get(line.style(Style.empty()).children(List.of()));
+        if (translated != null) {
+            Component result = translated.applyFallbackStyle(line.style());
+            for (val child : children) {
+                result = result.append(child);
+            }
+            return result;
+        }
+        return line.children(children);
     }
 
     private void translateEnchantments(ModifiableItemStack item, Localized locale) {
@@ -263,15 +332,25 @@ public class ItemStackTranslationUtils {
     }
 
     private Component getEnchantmentTooltipLine(EnchantmentType enchantment, int level, Localized locale) {
-        Component line = enchantment.getDescription();
-        if (translations != null && line instanceof TranslatableComponent) {
-            line = translations.getTextComponent(locale, ((TranslatableComponent) line).key()).orElse(line);
-        }
+        Component line = getTranslatedEnchantmentDescription(enchantment, locale).orElseGet(enchantment::getDescription);
         val definition = enchantment.getDefinition();
         if (level != 1 || definition == null || definition.getMaxLevel() != 1) {
             line = line.append(Component.text(" ")).append(getEnchantmentLevelComponent(level, locale));
         }
         return line;
+    }
+
+    private Optional<Component> getTranslatedEnchantmentDescription(EnchantmentType enchantment, Localized locale) {
+        if (translations == null) {
+            return Optional.empty();
+        }
+        val description = enchantment.getDescription();
+        val translated = description instanceof TranslatableComponent
+                ? translations.getTextComponent(locale, ((TranslatableComponent) description).key())
+                : Optional.<Component>empty();
+        val name = enchantment.getName();
+        val legacyId = "minecraft".equals(name.getNamespace()) ? name.getKey() : name.toString();
+        return translated.or(() -> translations.getTextComponent(locale, "Enchantments." + legacyId + ".name"));
     }
 
     private Component getEnchantmentLevelComponent(int level, Localized locale) {

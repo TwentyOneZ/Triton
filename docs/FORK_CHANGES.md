@@ -18,13 +18,14 @@ Foram incorporados dialogs, livro de receitas, Folia, correções de login/confi
 Ative `experimental-use-packetevents: true` e a tradução de itens na configuração do Triton. A implementação adicional de encantamentos está nesse caminho; os wrappers ProtocolLib personalizados e seus diagnósticos também foram preservados.
 
 - Traduz `ENCHANTMENTS` e `STORED_ENCHANTMENTS`, incluindo livros encantados e descrições customizadas com placeholders Triton.
-- Descrições translatable consultam o TranslationManager pela chave original, por exemplo `enchantment.minecraft.sharpness`. Níveis de 1 a 10 também podem usar `enchantment.level.N`.
+- Descrições translatable consultam o TranslationManager pela chave original, por exemplo `enchantment.minecraft.sharpness`. Sem essa chave, aceita as entradas existentes `Enchantments.sharpness.name` (vanilla) e `Enchantments.mythic:prismatic.name` (customizado). Níveis de 1 a 10 também podem usar `enchantment.level.N`.
 - Sem entrada cadastrada, preserva a descrição translatable original. Níveis acima de 10 mantêm a representação romana personalizada.
 - Mantém maldições vanilla em vermelho e o estilo não itálico do tooltip.
 - Cria lore apenas na cópia enviada ao cliente. Não modifica os identificadores, níveis, quantidade ou componentes efetivos do item original.
 - Respeita `TOOLTIP_DISPLAY`, inclusive tooltip inteiro e componentes ocultos. Se a lore estiver oculta, conserva a representação original do encantamento em vez de escondê-la e produzir lore invisível.
 - Em versões anteriores a 1.21.5, respeita `showInTooltip`.
 - Mantém a prevenção de duplicação por chaves translatable e correspondência exata das linhas geradas. Foi retirada a heurística de prefixos ingleses, que poderia confundir lore comum com encantamentos.
+- A lore preexistente também é traduzida, mesmo quando a representação nativa de encantamentos está oculta. Componentes translatable são reconhecidos estruturalmente; nomes customizados antigos em texto simples são reconhecidos por correspondência exata com traduções cadastradas dos encantamentos presentes no item. Duplicatas que se tornam a mesma linha são removidas apenas na cópia enviada. Texto simples sem correspondência cadastrada permanece intacto.
 - O refresh deve partir do item original, como no fluxo oficial de inventários e receitas. Traduzir novamente a cópia já preparada não acrescenta novas linhas.
 
 As auditorias `[EnchantAudit]` e os diagnósticos de itens ProtocolLib exigem `log-level: 2`. A inspeção detalhada de componentes e a reflexão não são executadas nos níveis normais de produção.
@@ -79,7 +80,7 @@ Artefato instalável: **`build/libs/Triton-4.2.0-all.jar`**. O JAR sem `-all` é
 ## Validação em 2026-10-13
 
 - Build completo com Gradle Wrapper e JDK 25.
-- 140 testes aprovados, zero falhas; um teste de banners (`PatternsTest`) já desativado pelo upstream.
+- 144 testes aprovados, zero falhas; um teste de banners (`PatternsTest`) já desativado pelo upstream.
 - 14 execuções de regressão adicionais: seis variantes de idioma, livros, maldição, encantamento customizado, placeholders de nome/lore, visibilidade moderna e antiga, deduplicação, ofertas comerciais e receitas.
 - Dados independentes em `en_US`, `pt_BR`, `es_MX`, `ru_RU` e `fr_FR`; também coberta a grafia `ft_FR` informada inicialmente. Nenhuma dependência de arquivos ou banco do GoianiaSMP.
 - Inicialização real no Paper **26.3-181-main@cc7ee9a**, com Java 25, em instância isolada, armazenamento local e mundo temporário.
@@ -88,6 +89,10 @@ Artefato instalável: **`build/libs/Triton-4.2.0-all.jar`**. O JAR sem `-all` é
 - Conferência de `plugin.yml`, loader e módulos `.jarinjar` no JAR instalável.
 
 Não foi feito teste visual com cliente Minecraft conectado, nem teste de ida e volta de inventário criativo. O aviso de inventário criativo já existente na configuração oficial continua aplicável. O teste real não usou o banco, mundo ou conjunto completo de plugins do Perspex. Os caminhos exclusivamente ProtocolLib, BungeeCord, Velocity e Folia foram compilados; não foram executados nesses servidores.
+
+### Regressão dos itens de produção
+
+A reprodução adicional utilizou cópias exportadas via Denizen da espada de ouro e da armadura de ouro com trim resin/silence, com o datapack MythicEnchantments real, no Paper isolado. A espada passou em `en_GB`, `pt_BR`, `es_MX`, `ru_RU` e `fr_FR`: tradução da lore existente, oito encantamentos distintos após remover a linha repetida de Silent Blade, preservação dos encantamentos e dos bytes originais. A armadura original já tinha `ENCHANTMENTS` oculto e lore removida antes da atualização; permanece oculta por definição. Numa cópia com essa ocultação removida, os encantamentos são apresentados, preservando trim, atributos e níveis. Nenhum item do jogador foi alterado, e o servidor de produção não foi reiniciado nem recarregado. Esses fixtures externos não são dependências da suíte versionada.
 
 ## Arquivos e futuros merges
 
