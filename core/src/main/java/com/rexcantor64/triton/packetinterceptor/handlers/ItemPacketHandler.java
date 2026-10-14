@@ -2,7 +2,10 @@ package com.rexcantor64.triton.packetinterceptor.handlers;
 
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import com.github.retrooper.packetevents.protocol.recipe.data.MerchantItemCost;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetCursorItem;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMerchantOffers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPlayerInventory;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
@@ -13,6 +16,8 @@ import com.rexcantor64.triton.utils.ItemStackTranslationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.function.Consumer;
 
 @RequiredArgsConstructor
 public class ItemPacketHandler {
@@ -94,11 +99,48 @@ public class ItemPacketHandler {
         }
     }
 
+    public void onMerchantOffersPacket(@NotNull PacketSendEvent event, @NotNull TritonLanguagePlayer<?> languagePlayer) {
+        val packet = new WrapperPlayServerMerchantOffers(event);
+        boolean changed = false;
+
+        for (val offer : packet.getMerchantOffers()) {
+            changed |= translateMerchantCost(offer.getFirstInputCost(), offer::setFirstInputCost, languagePlayer);
+            changed |= translateMerchantCost(offer.getSecondInputCost(), offer::setSecondInputCost, languagePlayer);
+            changed |= translateMerchantItem(offer.getOutputItem(), offer::setOutputItem, languagePlayer);
+        }
+
+        if (changed) {
+            event.markForReEncode(true);
+        }
+    }
+
     public void onClientCloseWindowPacket(@NotNull PacketReceiveEvent event, @NotNull TritonLanguagePlayer<?> languagePlayer) {
         languagePlayer.getPacketEventsRefresh().setCurrentWindowId(0);
     }
 
     public void onServerCloseWindowPacket(@NotNull PacketSendEvent event, @NotNull TritonLanguagePlayer<?> languagePlayer) {
         languagePlayer.getPacketEventsRefresh().setCurrentWindowId(0);
+    }
+
+    private boolean translateMerchantCost(MerchantItemCost cost, Consumer<MerchantItemCost> setter, TritonLanguagePlayer<?> languagePlayer) {
+        if (cost == null) {
+            return false;
+        }
+
+        val item = cost.asItem();
+        return translateMerchantItem(item, translatedItem -> setter.accept(MerchantItemCost.ofItem(translatedItem)), languagePlayer);
+    }
+
+    private boolean translateMerchantItem(ItemStack item, Consumer<ItemStack> setter, TritonLanguagePlayer<?> languagePlayer) {
+        if (item == null || item.isEmpty()) {
+            return false;
+        }
+
+        val result = this.itemHandler.translateItem(item, languagePlayer);
+        if (!result.isModified()) {
+            return false;
+        }
+        setter.accept(result.getModified());
+        return true;
     }
 }

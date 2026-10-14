@@ -50,6 +50,9 @@ public class WrappedPatchedDataComponentMap extends AbstractWrapper {
     private static final WrappedRegistrable TYPE_ITEM_NAME;
     private static final WrappedRegistrable TYPE_CUSTOM_NAME;
     private static final WrappedRegistrable TYPE_LORE;
+    private static final WrappedRegistrable TYPE_ENCHANTMENTS;
+    private static final WrappedRegistrable TYPE_STORED_ENCHANTMENTS;
+    private static final @Nullable WrappedRegistrable TYPE_TOOLTIP_DISPLAY;
     private static final WrappedRegistrable TYPE_CONTAINER;
     private static final WrappedRegistrable TYPE_WRITTEN_BOOK_CONTENT;
 
@@ -83,12 +86,22 @@ public class WrappedPatchedDataComponentMap extends AbstractWrapper {
             TYPE_ITEM_NAME = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("item_name"));
             TYPE_CUSTOM_NAME = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("custom_name"));
             TYPE_LORE = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("lore"));
+            TYPE_ENCHANTMENTS = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("enchantments"));
+            TYPE_STORED_ENCHANTMENTS = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("stored_enchantments"));
+            TYPE_TOOLTIP_DISPLAY = MinecraftVersion.v1_21_5.atOrAbove()
+                    ? WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("tooltip_display"))
+                    : null;
             TYPE_CONTAINER = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("container"));
             TYPE_WRITTEN_BOOK_CONTENT = WrappedRegistrable.fromHandle(DATA_COMPONENT_TYPE, wrappedRegistry.get("written_book_content"));
         } else {
             TYPE_ITEM_NAME = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "item_name");
             TYPE_CUSTOM_NAME = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "custom_name");
             TYPE_LORE = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "lore");
+            TYPE_ENCHANTMENTS = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "enchantments");
+            TYPE_STORED_ENCHANTMENTS = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "stored_enchantments");
+            TYPE_TOOLTIP_DISPLAY = MinecraftVersion.v1_21_5.atOrAbove()
+                    ? WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "tooltip_display")
+                    : null;
             TYPE_CONTAINER = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "container");
             TYPE_WRITTEN_BOOK_CONTENT = WrappedRegistrable.fromClassAndKey(DATA_COMPONENT_TYPE, "written_book_content");
         }
@@ -117,6 +130,21 @@ public class WrappedPatchedDataComponentMap extends AbstractWrapper {
 
     public @Nullable WrappedItemLore getLore() {
         return WrappedItemLore.getConverter().getSpecific(get(TYPE_LORE));
+    }
+
+    public @Nullable Object getEnchantments() {
+        return get(TYPE_ENCHANTMENTS);
+    }
+
+    public @Nullable Object getStoredEnchantments() {
+        return get(TYPE_STORED_ENCHANTMENTS);
+    }
+
+    public @Nullable Object getTooltipDisplay() {
+        if (TYPE_TOOLTIP_DISPLAY == null) {
+            return null;
+        }
+        return get(TYPE_TOOLTIP_DISPLAY);
     }
 
     public @Nullable WrappedWrittenBookContent getWrittenBookContent() {

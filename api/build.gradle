@@ -8,7 +8,7 @@ group = 'com.rexcantor64.triton'
 apply from: '../gradle/publish.gradle'
 
 dependencies {
-    compileOnly libs.spigot.api
+    compileOnly libs.paper.api
     compileOnly libs.bungeecord.api
 
     compileOnly libs.adventure.api
@@ -31,7 +31,7 @@ javadoc {
     options.encoding = 'UTF-8'
     options.charSet = 'UTF-8'
     options.links(
-            'https://hub.spigotmc.org/javadocs/spigot/',
+            'https://jd.papermc.io/paper/26.3/',
             'https://jd.papermc.io/waterfall/1.21/', // Use Waterfall's JavaDocs instead of Bungee's since those are broken
             'https://docs.oracle.com/en/java/javase/25/docs/api/',
             "https://jd.advntr.dev/api/${libs.adventure.api.get().version}/",
@@ -40,8 +40,8 @@ javadoc {
     // Disable the crazy super-strict doclint tool
     options.addStringOption('Xdoclint:none', '-quiet')
 
-    // Mark sources as Java 17 source compatible
-    options.source = '17'
+    // Mark sources as Java 25 source compatible
+    options.source = '25'
 }
 
 publishing {

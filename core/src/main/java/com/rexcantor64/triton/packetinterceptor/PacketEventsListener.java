@@ -151,6 +151,7 @@ public class PacketEventsListener implements PacketListener {
             updatedHandlers.put(PacketType.Play.Server.SET_PLAYER_INVENTORY, itemHandler::onSetPlayerInventoryPacket);
             updatedHandlers.put(PacketType.Play.Server.SET_SLOT, itemHandler::onSetSlotPacket);
             updatedHandlers.put(PacketType.Play.Server.WINDOW_ITEMS, itemHandler::onWindowItemsPacket);
+            updatedHandlers.put(PacketType.Play.Server.MERCHANT_OFFERS, itemHandler::onMerchantOffersPacket);
             updatedHandlers.put(PacketType.Play.Server.CLOSE_WINDOW, itemHandler::onServerCloseWindowPacket);
             updatedReceiveHandlers.put(PacketType.Play.Client.CLOSE_WINDOW, itemHandler::onClientCloseWindowPacket);
         }

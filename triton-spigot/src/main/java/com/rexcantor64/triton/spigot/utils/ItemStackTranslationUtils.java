@@ -11,6 +11,7 @@ import com.comphenix.protocol.wrappers.nbt.NbtCompound;
 import com.comphenix.protocol.wrappers.nbt.NbtFactory;
 import com.comphenix.protocol.wrappers.nbt.NbtList;
 import com.google.gson.JsonSyntaxException;
+import com.rexcantor64.triton.Triton;
 import com.rexcantor64.triton.api.language.Localized;
 import com.rexcantor64.triton.spigot.SpigotTriton;
 import com.rexcantor64.triton.spigot.wrappers.items.WrappedFilterable;
@@ -21,16 +22,20 @@ import com.rexcantor64.triton.spigot.wrappers.items.WrappedWrittenBookContent;
 import com.rexcantor64.triton.utils.ComponentUtils;
 import lombok.val;
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -64,8 +69,16 @@ public class ItemStackTranslationUtils {
             return item;
         }
         if (MinecraftVersion.v1_20_5.atOrAbove()) { // 1.20.6+
+            Triton.get().getLogger().logDebug(
+                    "[EnchantDebug] Spigot item translation using data components for %1",
+                    item.getType()
+            );
             return translateItemStackPost_1_20_6(item, languagePlayer, translateBooks, true);
         } else {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantDebug] Spigot item translation using legacy NBT for %1",
+                    item.getType()
+            );
             return translateItemStackPre_1_20_6(item, languagePlayer, translateBooks);
         }
     }
@@ -85,6 +98,7 @@ public class ItemStackTranslationUtils {
             // If the item is not a craft item, use the Bukkit API
             return translateBukkitItemStack(item, languagePlayer);
         }
+        logNbtItemAudit("before-legacy-nbt", item, languagePlayer, compound);
 
         // Translate the contents of shulker boxes
         if (compound.containsKey("BlockEntityTag")) {
@@ -138,6 +152,7 @@ public class ItemStackTranslationUtils {
                 compound.put("pages", NbtFactory.ofList("pages", newPagesCollection));
             }
         }
+        logNbtItemAudit("after-legacy-nbt", item, languagePlayer, compound);
         return item;
     }
 
@@ -145,9 +160,14 @@ public class ItemStackTranslationUtils {
         Optional<WrappedPatchedDataComponentMap> componentMapOpt = WrappedPatchedDataComponentMap.fromItemStack(item);
         if (!componentMapOpt.isPresent()) {
             // item stack is not a craft item stack, delegate to the bukkit translator
+            Triton.get().getLogger().logDebug(
+                    "[EnchantDebug] No CraftItemStack data component map for %1; delegating to Bukkit ItemMeta",
+                    item.getType()
+            );
             return translateBukkitItemStack(item, languagePlayer);
         }
         WrappedPatchedDataComponentMap componentMap = componentMapOpt.get();
+        logDataComponentAudit("before-data-components", item, languagePlayer, translateBooks, translateLore, componentMap);
 
         // translate item name
         WrappedChatComponent itemName = componentMap.getItemName();
@@ -203,7 +223,6 @@ public class ItemStackTranslationUtils {
                 itemLore.setLines(newLines);
                 componentMap.setLore(itemLore);
             }
-
             // translate tooltips of shulker boxes (and other containers)
             WrappedItemContainerContents containerContents = componentMap.getContainer();
             if (containerContents != null) {
@@ -244,10 +263,12 @@ public class ItemStackTranslationUtils {
             }
         }
 
+        logDataComponentAudit("after-data-components", item, languagePlayer, translateBooks, translateLore, componentMap);
         return item;
     }
 
     private static @NotNull ItemStack translateBukkitItemStack(@NotNull ItemStack item, @NotNull Localized languagePlayer) {
+        logBukkitItemAudit("before-bukkit", item, languagePlayer);
         if (item.hasItemMeta()) {
             ItemMeta meta = item.getItemMeta();
             if (meta.hasDisplayName()) {
@@ -272,6 +293,7 @@ public class ItemStackTranslationUtils {
             }
             item.setItemMeta(meta);
         }
+        logBukkitItemAudit("after-bukkit", item, languagePlayer);
         return item;
     }
 
@@ -355,6 +377,200 @@ public class ItemStackTranslationUtils {
         val compound = deserializeItemTagNbt(nbt);
         translateNbtItem(compound, localized, true);
         return serializeItemTagNbt(compound);
+    }
+
+    private static void logDataComponentAudit(
+            @NotNull String phase,
+            @NotNull ItemStack item,
+            @NotNull Localized languagePlayer,
+            boolean translateBooks,
+            boolean translateLore,
+            @NotNull WrappedPatchedDataComponentMap componentMap
+    ) {
+        try {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=data-components type=%2 amount=%3 itemId=%4 lang=%5 translateLore=%6 translateBooks=%7 lore=%8 enchantments=%9 storedEnchantments=%10 tooltipDisplay=%11 bukkitMeta=%12 componentMap=%13",
+                    phase,
+                    item.getType(),
+                    item.getAmount(),
+                    System.identityHashCode(item),
+                    languagePlayer.getLanguageId(),
+                    translateLore,
+                    translateBooks,
+                    describeWrappedLore(componentMap.getLore()),
+                    describeRawComponent(componentMap.getEnchantments()),
+                    describeRawComponent(componentMap.getStoredEnchantments()),
+                    describeRawComponent(componentMap.getTooltipDisplay()),
+                    describeBukkitMeta(item),
+                    limit(String.valueOf(componentMap.getHandle()), 700)
+            );
+        } catch (Exception e) {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=data-components failed to inspect %2: %3",
+                    phase,
+                    item.getType(),
+                    e.getMessage()
+            );
+        }
+    }
+
+    private static void logBukkitItemAudit(@NotNull String phase, @NotNull ItemStack item, @NotNull Localized languagePlayer) {
+        try {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=bukkit-meta type=%2 amount=%3 itemId=%4 lang=%5 bukkitMeta=%6",
+                    phase,
+                    item.getType(),
+                    item.getAmount(),
+                    System.identityHashCode(item),
+                    languagePlayer.getLanguageId(),
+                    describeBukkitMeta(item)
+            );
+        } catch (Exception e) {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=bukkit-meta failed to inspect %2: %3",
+                    phase,
+                    item.getType(),
+                    e.getMessage()
+            );
+        }
+    }
+
+    private static void logNbtItemAudit(
+            @NotNull String phase,
+            @NotNull ItemStack item,
+            @NotNull Localized languagePlayer,
+            @NotNull NbtCompound compound
+    ) {
+        try {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=legacy-nbt type=%2 amount=%3 itemId=%4 lang=%5 display=%6 enchantments=%7 storedEnchantments=%8 legacyEnch=%9 hideFlags=%10 bukkitMeta=%11",
+                    phase,
+                    item.getType(),
+                    item.getAmount(),
+                    System.identityHashCode(item),
+                    languagePlayer.getLanguageId(),
+                    describeLegacyDisplay(compound),
+                    describeNbtValue(compound, "Enchantments"),
+                    describeNbtValue(compound, "StoredEnchantments"),
+                    describeNbtValue(compound, "ench"),
+                    describeNbtValue(compound, "HideFlags"),
+                    describeBukkitMeta(item)
+            );
+        } catch (Exception e) {
+            Triton.get().getLogger().logDebug(
+                    "[EnchantAudit] ProtocolLib phase=%1 path=legacy-nbt failed to inspect %2: %3",
+                    phase,
+                    item.getType(),
+                    e.getMessage()
+            );
+        }
+    }
+
+    private static String describeWrappedLore(@Nullable WrappedItemLore lore) {
+        if (lore == null) {
+            return "absent";
+        }
+        return "lines=" + lore.getLines().size();
+    }
+
+    private static String describeBukkitMeta(@NotNull ItemStack item) {
+        if (!item.hasItemMeta()) {
+            return "absent";
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        String storedEnchants = "n/a";
+        if (meta instanceof EnchantmentStorageMeta) {
+            storedEnchants = describeEnchantmentMap(((EnchantmentStorageMeta) meta).getStoredEnchants());
+        }
+
+        return "displayName=" + meta.hasDisplayName()
+                + " loreLines=" + (meta.hasLore() ? meta.getLore().size() : 0)
+                + " enchants=" + describeEnchantmentMap(meta.getEnchants())
+                + " storedEnchants=" + storedEnchants
+                + " flags=" + meta.getItemFlags().stream().map(ItemFlag::name).sorted().collect(Collectors.toList())
+                + " hideEnchants=" + meta.hasItemFlag(ItemFlag.HIDE_ENCHANTS);
+    }
+
+    private static String describeEnchantmentMap(@NotNull Map<?, Integer> enchantments) {
+        if (enchantments.isEmpty()) {
+            return "empty";
+        }
+
+        List<String> entries = new ArrayList<>();
+        int count = 0;
+        for (val entry : enchantments.entrySet()) {
+            if (count < 8) {
+                entries.add(String.valueOf(entry.getKey()) + "=" + entry.getValue());
+            }
+            count++;
+        }
+        if (count > entries.size()) {
+            entries.add("+" + (count - entries.size()) + " more");
+        }
+        return "size=" + count + " entries=" + entries;
+    }
+
+    private static String describeRawComponent(@Nullable Object component) {
+        if (component == null) {
+            return "absent";
+        }
+
+        List<String> methodValues = new ArrayList<>();
+        for (Method method : component.getClass().getMethods()) {
+            if (method.getParameterCount() != 0 || !isUsefulAuditMethod(method)) {
+                continue;
+            }
+            try {
+                Object result = method.invoke(component);
+                methodValues.add(method.getName() + "=" + result);
+            } catch (Exception ignored) {
+                // Best-effort reflection for audit only.
+            }
+        }
+        return "class=" + component.getClass().getName()
+                + " methods=" + methodValues
+                + " value=" + limit(String.valueOf(component), 500);
+    }
+
+    private static boolean isUsefulAuditMethod(@NotNull Method method) {
+        val name = method.getName().toLowerCase();
+        val returnType = method.getReturnType();
+        boolean booleanReturn = returnType == boolean.class || returnType == Boolean.class;
+        boolean numericReturn = returnType == int.class || returnType == Integer.class;
+        return (booleanReturn && (name.contains("tooltip") || name.equals("isempty") || name.equals("empty")))
+                || (numericReturn && name.equals("size"));
+    }
+
+    private static String describeLegacyDisplay(@NotNull NbtCompound compound) {
+        if (!compound.containsKey("display")) {
+            return "absent";
+        }
+
+        NbtCompound display = compound.getCompoundOrDefault("display");
+        int loreLines = 0;
+        if (display.containsKey("Lore")) {
+            loreLines = display.getListOrDefault("Lore").size();
+        }
+        return "name=" + display.containsKey("Name")
+                + " loreLines=" + loreLines;
+    }
+
+    private static String describeNbtValue(@NotNull NbtCompound compound, @NotNull String key) {
+        if (!compound.containsKey(key)) {
+            return "absent";
+        }
+        return limit(String.valueOf(compound.getValue(key)), 500);
+    }
+
+    private static String limit(@Nullable String value, int maxLength) {
+        if (value == null) {
+            return "null";
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 
     private static NbtCompound deserializeItemTagNbt(String nbt) {

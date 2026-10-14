@@ -17,7 +17,7 @@ group = 'com.rexcantor64.triton'
 
 dependencies {
     compileOnly project(':core:triton-core-loader')
-    compileOnly libs.spigot.api
+    compileOnly libs.paper.api
 }
 
 bukkit {

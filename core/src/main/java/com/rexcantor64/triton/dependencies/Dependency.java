@@ -132,8 +132,8 @@ public enum Dependency {
     PACKET_EVENTS_API(
             "com{}github{}retrooper",
             "packetevents-api",
-            "2.13.0",
-            "x/64iHLZBlA31FGQ3i6W9p6+A58umyix50ZpWVEH7o8=",
+            "2.14.0",
+            "zxr8/RzP+6UQizInkY8djU0PEPxrZUkBz/QtAHDkJ8o=",
             relocate("com{}github{}retrooper{}packetevents", "packetevents{}api"),
             relocate("io{}github{}retrooper{}packetevents", "packetevents{}impl"),
             relocateIf("net{}kyori{}adventure", "adventure", LoaderFlag.VENDOR_ADVENTURE),
@@ -148,8 +148,8 @@ public enum Dependency {
     PACKET_EVENTS_NETTY_COMMON(
             "com{}github{}retrooper",
             "packetevents-netty-common",
-            "2.13.0",
-            "ibRP/qBRoSQq7k4HA89XIsQ29zVK2dUhSMjW7w0K6EM=",
+            "2.14.0",
+            "ynbGGAhVYaPLV4x0PviMC+DFWdPh56fZk0yvs9ovp9g=",
             relocate("com{}github{}retrooper{}packetevents", "packetevents{}api"),
             relocate("io{}github{}retrooper{}packetevents", "packetevents{}impl"),
             relocateIf("net{}kyori{}adventure", "adventure", LoaderFlag.VENDOR_ADVENTURE),
@@ -164,8 +164,8 @@ public enum Dependency {
     PACKET_EVENTS_SPIGOT(
             "com{}github{}retrooper",
             "packetevents-spigot",
-            "2.13.0",
-            "LZP6ryynJN9s07c8vjxcS5Nh7lJ/FvR4xwdU6swMlpw=",
+            "2.14.0",
+            "E+dx0l51qrfHydPzg0ZL2VanvuSfPZSMx0oYcOhECg8=",
             relocate("com{}github{}retrooper{}packetevents", "packetevents{}api"),
             relocate("io{}github{}retrooper{}packetevents", "packetevents{}impl"),
             relocateIf("net{}kyori{}adventure", "adventure", LoaderFlag.VENDOR_ADVENTURE),
@@ -180,8 +180,8 @@ public enum Dependency {
     PACKET_EVENTS_BUNGEE(
             "com{}github{}retrooper",
             "packetevents-bungeecord",
-            "2.13.0",
-            "8GSB2Cnkrts29i5wJ0NHyWLWIEPoadialV3Jk1nUDYA=",
+            "2.14.0",
+            "8/8cvz+VRRS+8b5q6bEgpStn4prdicxR7UJWoDo+75E=",
             relocate("com{}github{}retrooper{}packetevents", "packetevents{}api"),
             relocate("io{}github{}retrooper{}packetevents", "packetevents{}impl"),
             relocateIf("net{}kyori{}adventure", "adventure", LoaderFlag.VENDOR_ADVENTURE),
@@ -196,8 +196,8 @@ public enum Dependency {
     PACKET_EVENTS_VELOCITY(
             "com{}github{}retrooper",
             "packetevents-velocity",
-            "2.13.0",
-            "XdFvpzbQRZiYe/7Q9U+yjg3mCjUeudH5U56Fs3KmgDE=",
+            "2.14.0",
+            "dzOlzyM8cLRa/9RbCBHaQhNYjqQnPmwggrF009UnAME=",
             relocate("com{}github{}retrooper{}packetevents", "packetevents{}api"),
             relocate("io{}github{}retrooper{}packetevents", "packetevents{}impl"),
             relocateIf("net{}kyori{}adventure", "adventure", LoaderFlag.VENDOR_ADVENTURE),
@@ -229,8 +229,11 @@ public enum Dependency {
         val builder = Library.builder()
                 .groupId(this.groupId)
                 .artifactId(this.artifactId)
-                .version(this.version)
-                .checksum(this.sha256Checksum);
+                .version(this.version);
+
+        if (!this.version.endsWith("-SNAPSHOT")) {
+            builder.checksum(this.sha256Checksum);
+        }
 
         Arrays.stream(relocations)
                 .map(relocation -> relocation.relocate(loaderFlags))
