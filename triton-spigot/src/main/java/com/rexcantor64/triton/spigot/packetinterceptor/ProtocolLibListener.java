@@ -42,6 +42,7 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -867,7 +868,8 @@ public class ProtocolLibListener implements PacketListener, ProtocolLibRefresher
             return;
         }
 
-        if (firstRun.compareAndSet(true, false) && !Bukkit.getServer().isPrimaryThread()) {
+        if (firstRun.compareAndSet(true, false)
+                && !main.getScheduler().isSyncThread(packet.getPlayer(), null)) {
             Thread.currentThread().setName("Triton Async Packet Handler");
         }
 
@@ -906,8 +908,8 @@ public class ProtocolLibListener implements PacketListener, ProtocolLibRefresher
             return;
         }
         if (packet.getPacketType() == PacketType.Play.Client.SETTINGS) {
-            Bukkit.getScheduler().runTask(
-                    main.getJavaPlugin(),
+            main.getScheduler().runSync(
+                    packet.getPlayer(),
                     () -> languagePlayer.setLang(
                             main.getLanguageManager()
                                     .getLanguageByLocaleOrDefault(packet.getPacket().getStrings().readSafely(0))
@@ -917,7 +919,7 @@ public class ProtocolLibListener implements PacketListener, ProtocolLibRefresher
             val clientConfigurations = packet.getPacket().getStructures().withType(WrappedClientConfiguration.getWrappedClass(), WrappedClientConfiguration.CONVERTER);
             val locale = clientConfigurations.readSafely(0).getLocale();
             val language = main.getLanguageManager().getLanguageByLocaleOrDefault(locale);
-            Bukkit.getScheduler().runTaskLater(main.getJavaPlugin(), () -> languagePlayer.setLang(language), 2L);
+            main.getScheduler().runSyncLater(() -> languagePlayer.setLang(language), 2L);
         }
     }
 
@@ -1019,45 +1021,13 @@ public class ProtocolLibListener implements PacketListener, ProtocolLibRefresher
     public void resetSign(Player p, SignLocation location) {
         World world = Bukkit.getWorld(location.getWorld());
         if (world == null) return;
-        Block block = world.getBlockAt(location.getX(), location.getY(), location.getZ());
-        BlockState state = block.getState();
-        if (!(state instanceof Sign))
-            return;
-        String[] lines = ((Sign) state).getLines();
-        if (MinecraftReflection.signUpdateExists()) {
-            PacketContainer container =
-                    ProtocolLibrary.getProtocolManager().createPacket(PacketType.Play.Server.UPDATE_SIGN, true);
-            container.getBlockPositionModifier().writeSafely(0, new BlockPosition(location.getX(), location.getY(),
-                    location.getZ()));
-            container.getChatComponentArrays().writeSafely(0,
-                    new WrappedChatComponent[]{WrappedChatComponent.fromText(lines[0]),
-                            WrappedChatComponent.fromText(lines[1]), WrappedChatComponent.fromText(lines[2]),
-                            WrappedChatComponent.fromText(lines[3])});
-            try {
-                ProtocolLibrary.getProtocolManager().sendServerPacket(p, container, false);
-            } catch (Exception e) {
-                main.getLogger().logError(e, "Failed refresh sign.");
-            }
-        } else {
-            PacketContainer container =
-                    ProtocolLibrary.getProtocolManager().createPacket(PacketType.Play.Server.TILE_ENTITY_DATA, true);
-            container.getBlockPositionModifier().writeSafely(0, new BlockPosition(location.getX(), location.getY(),
-                    location.getZ()));
-            container.getIntegers().writeSafely(0, 9); // Action (9): Update sign text
-            NbtCompound nbt = NbtFactory.asCompound(container.getNbtModifier().readSafely(0));
-            for (int i = 0; i < 4; i++)
-                nbt.put("Text" + (i + 1), ComponentSerializer.toString(TextComponent.fromLegacyText(lines[i])));
-            nbt.put("name", "null")
-                    .put("x", block.getX())
-                    .put("y", block.getY())
-                    .put("z", block.getZ())
-                    .put("id", SIGN_NBT_ID);
-            try {
-                ProtocolLibrary.getProtocolManager().sendServerPacket(p, container, false);
-            } catch (Exception e) {
-                main.getLogger().logError("Failed refresh sign.");
-            }
-        }
+        val blockLocation = new Location(world, location.getX(), location.getY(), location.getZ());
+        main.getScheduler()
+                .runSync(blockLocation, () -> {
+                    Block block = world.getBlockAt(location.getX(), location.getY(), location.getZ());
+                    BlockState state = block.getState();
+                    state.update(true, false);
+                });
     }
 
     /* UTILITIES */

@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     alias(libs.plugins.shadow)
+    alias(libs.plugins.blossom)
 }
 
 group = 'com.rexcantor64.triton'
@@ -28,7 +29,6 @@ dependencies {
 
     compileOnly libs.bstats.base
 
-    implementation libs.slf4j.nop
     implementation libs.hikari
     implementation(libs.jsonpatch) {
         exclude group: 'com.google.code.gson', module: 'gson'
@@ -38,15 +38,21 @@ dependencies {
     implementation libs.libby.core
 
     // Test dependencies
+    testImplementation project(':core:triton-core-loader')
     testImplementation project(":api")
 
     testImplementation libs.junit.jupiter
     testRuntimeOnly libs.junit.platform.launcher
 
     testImplementation libs.adventure.api
+    testImplementation libs.adventure.nbt
     testImplementation libs.adventure.serializer.gson
     testImplementation libs.adventure.serializer.legacy
     testImplementation libs.adventure.serializer.plain
+
+    testImplementation libs.packetevents.api
+    testImplementation libs.packetevents.netty.common
+    testImplementation libs.netty.codec
 }
 
 shadowJar {
@@ -61,6 +67,17 @@ shadowJar {
 
     relocate 'org.objectweb.asm', 'com.rexcantor64.triton.lib.objectweb.asm'
     relocate 'me.lucko.jarrelocator', 'com.rexcantor64.triton.lib.jarrelocator'
+}
+
+sourceSets {
+    test {
+        blossom {
+            javaSources {
+                property("adventure_version", libs.adventure.api.get().version)
+                property("packet_events_version", libs.packetevents.api.get().version)
+            }
+        }
+    }
 }
 
 import groovy.json.JsonOutput

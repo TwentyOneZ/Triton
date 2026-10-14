@@ -1,20 +1,20 @@
 [versions]
-adventure = "4.26.1"
-adventure-platform = "4.4.1"
-asm = "9.9.1"
-bstats = "3.1.0"
+adventure = "5.2.0"
+asm = "9.11"
+bstats = "3.2.1"
 bungeecord = "1.21-R0.5-SNAPSHOT"
-junit = "5.14.1"
+folia = "26.1.2.build.8-stable"
+junit = "6.1.3"
 libby = "2.1.0"
-packetevents = "2.14.0"
-paper = "26.3.build.41-alpha"
-plugin-yml = "0.8.0"
-velocity = "3.4.0-SNAPSHOT"
+packetevents = "2.14.0-triton"
+paper = "26.3.build.181-stable"
+plugin-yml = "0.9.0"
+spigot = "26.2-R0.1-SNAPSHOT"
+velocity = "4.2.0"
 
 [libraries]
 adventure-api = { group = "net.kyori", name = "adventure-api", version.ref = "adventure" }
 adventure-nbt = { group = "net.kyori", name = "adventure-nbt", version.ref = "adventure" }
-adventure-serializer-bungeecord = { group = "net.kyori", name = "adventure-text-serializer-bungeecord", version.ref = "adventure-platform" }
 adventure-serializer-gson = { group = "net.kyori", name = "adventure-text-serializer-gson", version.ref = "adventure" }
 adventure-serializer-legacy = { group = "net.kyori", name = "adventure-text-serializer-legacy", version.ref = "adventure" }
 adventure-serializer-plain = { group = "net.kyori", name = "adventure-text-serializer-plain", version.ref = "adventure" }
@@ -26,33 +26,35 @@ bstats-bungeecord = { group = "org.bstats", name = "bstats-bungeecord", version.
 bstats-velocity = { group = "org.bstats", name = "bstats-velocity", version.ref = "bstats" }
 bungeecord-api = { group = "net.md-5", name = "bungeecord-api", version.ref = "bungeecord" }
 bungeecord-proxy = { group = "net.md-5", name = "bungeecord-proxy", version.ref = "bungeecord" }
-gson = { group = "com.google.code.gson", name = "gson", version = "2.9.0" }
-guava = { group = "com.google.guava", name = "guava", version = "31.1-jre" }
-hikari = { group = "com.zaxxer", name = "HikariCP", version = "7.0.2" }
-jansi = { group = "org.fusesource.jansi", name = "jansi", version = "2.4.0" }
+folia = { group = "dev.folia", name = "folia-api", version.ref = "folia" }
+gson = { group = "com.google.code.gson", name = "gson", version = "2.14.0" }
+guava = { group = "com.google.guava", name = "guava", version = "33.7.2-jre" }
+hikari = { group = "com.zaxxer", name = "HikariCP", version = "7.1.0" }
+jansi = { group = "org.fusesource.jansi", name = "jansi", version = "2.4.3" }
 jarrelocator = { group = "me.lucko", name = "jar-relocator", version = "1.7" }
-jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version = "26.0.2-1" }
-jsonpatch = { group = "com.tananaev", name = "json-patch", version = "1.1" }
+jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version = "26.1.0" }
+jsonpatch = { group = "com.tananaev", name = "json-patch", version = "1.2" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 libby-bukkit = { group = "com.rexcantor64", name = "libby-bukkit", version.ref = "libby" }
 libby-bungee = { group = "com.rexcantor64", name = "libby-bungee", version.ref = "libby" }
 libby-core = { group = "com.rexcantor64", name = "libby-core", version.ref = "libby" }
 libby-velocity = { group = "com.rexcantor64", name = "libby-velocity", version.ref = "libby" }
-log4j-core = { group = "org.apache.logging.log4j", name = "log4j-core", version = "2.17.1" }
-lombok = { group = "org.projectlombok", name = "lombok", version = "1.18.42" }
+log4j-core = { group = "org.apache.logging.log4j", name = "log4j-core", version = "2.26.1" }
+lombok = { group = "org.projectlombok", name = "lombok", version = "1.18.48" }
 minimessage = { group = "net.kyori", name = "adventure-text-minimessage", version.ref = "adventure" }
-mysql-connector = { group = "com.mysql", name = "mysql-connector-j", version = "9.5.0" }
-netty-codec = { group = "io.netty", name = "netty-codec", version = "4.1.80.Final" }
+mysql-connector = { group = "com.mysql", name = "mysql-connector-j", version = "26.7.0" }
+netty-codec = { group = "io.netty", name = "netty-codec", version = "4.2.19.Final" }
 packetevents-api = { group = "com.github.retrooper", name = "packetevents-api", version.ref = "packetevents" }
 packetevents-bungeecord = { group = "com.github.retrooper", name = "packetevents-bungeecord", version.ref = "packetevents" }
+packetevents-netty-common = { group = "com.github.retrooper", name = "packetevents-netty-common", version.ref = "packetevents" }
 packetevents-spigot = { group = "com.github.retrooper", name = "packetevents-spigot", version.ref = "packetevents" }
 packetevents-velocity = { group = "com.github.retrooper", name = "packetevents-velocity", version.ref = "packetevents" }
 paper-api = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
-placeholderapi = { group = "me.clip", name = "placeholderapi", version = "2.11.7" }
-protocollib = { group = "com.comphenix.protocol", name = "ProtocolLib", version = "5.4.0-SNAPSHOT" }
-slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version = "1.7.36" }
-snakeyaml = { group = "org.yaml", name = "snakeyaml", version = "2.0" }
+placeholderapi = { group = "me.clip", name = "placeholderapi", version = "2.12.3" }
+protocollib = { group = "net.dmulloy2", name = "ProtocolLib", version = "5.5.0-SNAPSHOT" }
+snakeyaml = { group = "org.yaml", name = "snakeyaml", version = "2.7" }
+spigot-api = { group = "org.spigotmc", name = "spigot-api", version.ref = "spigot" }
 spigot-legacy = { group = "org.spigotmc", name = "spigot-api", version = "1.8.8-R0.1-SNAPSHOT" }
 velocity-api = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity" }
 velocity-proxy = { group = "com.velocitypowered", name = "velocity-proxy", version.ref = "velocity" }
@@ -61,4 +63,4 @@ velocity-proxy = { group = "com.velocitypowered", name = "velocity-proxy", versi
 blossom = { id = "net.kyori.blossom", version = "2.2.0" }
 pluginyml-bukkit = { id = "de.eldoria.plugin-yml.bukkit", version.ref = "plugin-yml" }
 pluginyml-bungee = { id = "de.eldoria.plugin-yml.bungee", version.ref = "plugin-yml" }
-shadow = { id = "com.gradleup.shadow", version = "9.3.0" }
+shadow = { id = "com.gradleup.shadow", version = "9.6.1" }

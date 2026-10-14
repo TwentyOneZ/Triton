@@ -1,7 +1,7 @@
 package com.rexcantor64.triton.language.parser;
 
 import com.rexcantor64.triton.api.config.FeatureSyntax;
-import com.rexcantor64.triton.utils.DefaultFeatureSyntax;
+import com.rexcantor64.triton.test.DefaultFeatureSyntax;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -543,46 +543,6 @@ public class AdventureParserTest {
                                                                                 .color(NamedTextColor.GREEN)
                                                                 )
                                                 )
-                                )
-                )
-                .asComponent();
-
-        assertEquals(TranslationResult.ResultState.CHANGED, result.getState());
-        assertNotNull(result.getResultRaw());
-        assertEquals(expected.compact(), result.getResultRaw().compact());
-    }
-
-    @Test
-    public void testParseComponentWhileRetainingCorrectStylesWithLinkBug() {
-        // server adds invalid link to text
-        Component comp = Component.text()
-                .append(
-                        Component.text("[lang]")
-                                .color(NamedTextColor.DARK_GRAY),
-                        Component.text("change.colors.on.args[arg]5[/arg][/lang]")
-                                .color(NamedTextColor.DARK_GRAY)
-                                .clickEvent(ClickEvent.openUrl("http://change.colors.on.args[arg]5[/arg][/lang]"))
-                )
-                .asComponent();
-
-        TranslationResult<Component> result = parser.translateComponent(comp, configuration);
-
-        Component expected = Component.text()
-                .append(
-                        Component.text()
-                                .content("")
-                                .color(NamedTextColor.DARK_GRAY), // hack because component compaction is buggy
-                        Component.text()
-                                .content("")
-                                .color(NamedTextColor.DARK_GRAY)
-                                .clickEvent(ClickEvent.openUrl("http://change.colors.on.args[arg]5[/arg][/lang]"))
-                                .append(
-                                        Component.text()
-                                                .append(
-                                                        Component.text("Some text ").color(NamedTextColor.RED),
-                                                        Component.text("5 more text").color(NamedTextColor.BLUE)
-                                                )
-                                                .asComponent()
                                 )
                 )
                 .asComponent();

@@ -5,6 +5,11 @@ plugins {
 
 group = 'com.rexcantor64.triton'
 
+java {
+    // Paper 26.3 requires Java 25; the JDK 25 toolchain can still emit Java 21 bytecode.
+    disableAutoTargetJvm()
+}
+
 test {
     useJUnitPlatform()
 }
@@ -14,12 +19,13 @@ dependencies {
     compileOnly project(':api')
     compileOnly project(':core')
     implementation project(':spigot-legacy')
+    implementation project(':triton-spigot:triton-spigot-common')
+    implementation project(':triton-spigot:triton-spigot-folia')
 
     compileOnly libs.paper.api
 
     compileOnly libs.adventure.serializer.gson
     compileOnly libs.adventure.serializer.legacy
-    compileOnly libs.adventure.serializer.bungeecord
 
     compileOnly libs.protocollib
     compileOnly libs.placeholderapi

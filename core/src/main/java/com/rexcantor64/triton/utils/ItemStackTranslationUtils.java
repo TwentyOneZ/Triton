@@ -2,8 +2,8 @@ package com.rexcantor64.triton.utils;
 
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
-import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.component.ComponentType;
+import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemContainerContents;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemEnchantments;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemLore;
@@ -14,6 +14,7 @@ import com.github.retrooper.packetevents.protocol.item.enchantment.type.Enchantm
 import com.github.retrooper.packetevents.util.Filterable;
 import com.rexcantor64.triton.Triton;
 import com.rexcantor64.triton.api.language.Localized;
+import com.rexcantor64.triton.api.language.TranslationManager;
 import com.rexcantor64.triton.config.MainConfig;
 import com.rexcantor64.triton.language.parser.MessageParser;
 import lombok.Getter;
@@ -43,12 +44,13 @@ public class ItemStackTranslationUtils {
     private final @NotNull MessageParser parser;
     private final @NotNull MainConfig.FeatureSyntax syntax;
     private final boolean translateBooks;
+    private final @Nullable TranslationManager translations;
+
+    public ItemStackTranslationUtils(MessageParser parser, MainConfig.FeatureSyntax syntax, boolean translateBooks) {
+        this(parser, syntax, translateBooks, Triton.get() == null ? null : Triton.get().getTranslationManager());
+    }
 
     public ModifiableItemStack translateItem(ItemStack item, Localized locale) {
-        Triton.get().getLogger().logDebug(
-                "[EnchantDebug] PacketEvents item translation for type=%1",
-                item.getType().getName().getKey()
-        );
         val modifiableItem = new ModifiableItemStack(item);
         this.translateItem(modifiableItem, locale, true, true);
         return modifiableItem;
@@ -156,26 +158,13 @@ public class ItemStackTranslationUtils {
                 enchantmentLines
         );
 
-        Triton.get().getLogger().logDebug(
-                "[EnchantDebug] PacketEvents enchantment tooltip hidden=%1",
-                hasEnchantments
-        );
         if (!hasEnchantments) {
             return;
         }
         if (enchantmentLines.isEmpty() && !loreMatcher.hasDuplicateLoreLines()) {
-            Triton.get().getLogger().logDebug(
-                    "[EnchantDebug] PacketEvents skipped lore rewrite because enchantment lines already exist"
-            );
             return;
         }
 
-        if (loreMatcher.hasDuplicateLoreLines()) {
-            Triton.get().getLogger().logDebug(
-                    "[EnchantDebug] PacketEvents removed %1 duplicate enchantment lore line(s)",
-                    loreMatcher.getDuplicateLoreLineCount()
-            );
-        }
         enchantmentLines.addAll(loreMatcher.getDeduplicatedLoreLines());
         item.willModify().setComponent(ComponentTypes.LORE, new ItemLore(enchantmentLines));
     }
@@ -188,58 +177,37 @@ public class ItemStackTranslationUtils {
 
         val enchantments = enchantmentsOpt.get();
         if (enchantments.isEmpty()) {
-            Triton.get().getLogger().logDebug(
-                    "[EnchantDebug] PacketEvents skipped %1: empty=%2 showInTooltip=%3 hiddenInTooltipDisplay=%4",
-                    componentType.getName().getKey(),
-                    enchantments.isEmpty(),
-                    enchantments.isShowInTooltip(),
-                    isComponentHiddenInTooltipDisplay(item, componentType)
-            );
             return false;
         }
 
         boolean visible = isEnchantmentComponentVisible(item, componentType, enchantments);
-        int addedLines = 0;
-        int existingLines = 0;
+        if (!visible) {
+            return false;
+        }
         for (val enchantment : enchantments) {
             val translatedLines = getTranslatedEnchantmentTooltipLines(enchantment.getKey(), enchantment.getValue(), locale);
             if (translatedLines.isEmpty()) {
                 continue;
             }
             if (loreMatcher.containsEnchantment(enchantment.getKey(), translatedLines)) {
-                existingLines += translatedLines.size();
-                continue;
-            }
-            if (!visible) {
                 continue;
             }
 
             translatedLines.forEach(loreMatcher::addLoreLine);
             destination.addAll(translatedLines);
-            addedLines += translatedLines.size();
         }
 
-        boolean hidWithTooltipDisplay = false;
-        if (visible) {
+        if (!hideComponentInTooltipDisplay(item, componentType)) {
             item.willModify().setComponent(
                     componentType,
                     new ItemEnchantments(new LinkedHashMap<>(enchantments.getEnchantments()), false)
             );
-            hidWithTooltipDisplay = hideComponentInTooltipDisplay(item, componentType);
         }
-        Triton.get().getLogger().logDebug(
-                "[EnchantDebug] PacketEvents processed %1 visible=%2 added=%3 alreadyPresent=%4 tooltipDisplay=%5",
-                componentType.getName().getKey(),
-                visible,
-                addedLines,
-                existingLines,
-                hidWithTooltipDisplay
-        );
         return true;
     }
 
     private List<Component> getTranslatedEnchantmentTooltipLines(EnchantmentType enchantment, int level, Localized locale) {
-        val line = getEnchantmentTooltipLine(enchantment, level);
+        val line = getEnchantmentTooltipLine(enchantment, level, locale);
         val translatedLines = new ArrayList<Component>();
         val translationResult = parser.translateComponent(
                 line,
@@ -259,7 +227,10 @@ public class ItemStackTranslationUtils {
 
     private boolean isEnchantmentComponentVisible(ModifiableItemStack item, ComponentType<ItemEnchantments> componentType, ItemEnchantments enchantments) {
         if (usesTooltipDisplay()) {
-            return enchantments.isShowInTooltip() || !isComponentHiddenInTooltipDisplay(item, componentType);
+            return !isComponentHiddenInTooltipDisplay(item, componentType)
+                    && !isComponentHiddenInTooltipDisplay(item, ComponentTypes.LORE)
+                    && !getCurrentComponent(item, ComponentTypes.TOOLTIP_DISPLAY)
+                    .map(ItemTooltipDisplay::isHideTooltip).orElse(false);
         }
         return enchantments.isShowInTooltip();
     }
@@ -291,18 +262,23 @@ public class ItemStackTranslationUtils {
         return PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_21_5);
     }
 
-    private Component getEnchantmentTooltipLine(EnchantmentType enchantment, int level) {
+    private Component getEnchantmentTooltipLine(EnchantmentType enchantment, int level, Localized locale) {
         Component line = enchantment.getDescription();
+        if (translations != null && line instanceof TranslatableComponent) {
+            line = translations.getTextComponent(locale, ((TranslatableComponent) line).key()).orElse(line);
+        }
         val definition = enchantment.getDefinition();
         if (level != 1 || definition == null || definition.getMaxLevel() != 1) {
-            line = line.append(Component.text(" ")).append(getEnchantmentLevelComponent(level));
+            line = line.append(Component.text(" ")).append(getEnchantmentLevelComponent(level, locale));
         }
         return line;
     }
 
-    private Component getEnchantmentLevelComponent(int level) {
+    private Component getEnchantmentLevelComponent(int level, Localized locale) {
         if (level >= 1 && level <= 10) {
-            return Component.translatable("enchantment.level." + level);
+            val key = "enchantment.level." + level;
+            return translations == null ? Component.translatable(key)
+                    : translations.getTextComponent(locale, key).orElseGet(() -> Component.translatable(key));
         }
         return Component.text(toRomanNumeral(level));
     }
@@ -346,8 +322,11 @@ public class ItemStackTranslationUtils {
     }
 
     private void logPacketEventsAudit(String phase, ModifiableItemStack item, Localized locale, boolean translateLore, boolean translateBook) {
+        if (Triton.get() == null || Triton.get().getConfig().getLogLevel() < 2) {
+            return;
+        }
         try {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] PacketEvents phase=%1 type=%2 lang=%3 modified=%4 translateLore=%5 translateBook=%6 lore=%7 enchantments=%8 storedEnchantments=%9 tooltipDisplay=%10",
                     phase,
                     item.getOriginal().getType().getName().getKey(),
@@ -361,7 +340,7 @@ public class ItemStackTranslationUtils {
                     describeTooltipDisplay(getCurrentComponent(item, ComponentTypes.TOOLTIP_DISPLAY))
             );
         } catch (Exception e) {
-            Triton.get().getLogger().logDebug(
+            Triton.get().getLogger().logTrace(
                     "[EnchantAudit] PacketEvents phase=%1 failed to inspect item: %2",
                     phase,
                     e.getMessage()
@@ -428,12 +407,11 @@ public class ItemStackTranslationUtils {
         private boolean containsEnchantment(EnchantmentType enchantment, List<Component> generatedLines) {
             val translatableCandidates = collectTranslatableKeys(enchantment.getDescription());
             val exactPlainCandidates = collectExactPlainCandidates(enchantment, generatedLines);
-            val prefixPlainCandidates = collectPrefixPlainCandidates(enchantment);
             boolean found = false;
             List<Integer> matchingOriginalIndexes = new ArrayList<>();
 
             for (int i = 0; i < knownLoreLines.size(); i++) {
-                if (matchesEnchantment(knownLoreLines.get(i), translatableCandidates, exactPlainCandidates, prefixPlainCandidates)) {
+                if (matchesEnchantment(knownLoreLines.get(i), translatableCandidates, exactPlainCandidates)) {
                     found = true;
                     val originalIndex = knownOriginalIndexes.get(i);
                     if (originalIndex >= 0 && !matchingOriginalIndexes.contains(originalIndex)) {
@@ -450,10 +428,6 @@ public class ItemStackTranslationUtils {
 
         private boolean hasDuplicateLoreLines() {
             return !duplicateOriginalIndexes.isEmpty();
-        }
-
-        private int getDuplicateLoreLineCount() {
-            return duplicateOriginalIndexes.size();
         }
 
         private List<Component> getDeduplicatedLoreLines() {
@@ -485,7 +459,7 @@ public class ItemStackTranslationUtils {
             knownOriginalIndexes.add(originalIndex);
         }
 
-        private static boolean matchesEnchantment(Component line, Set<String> translatableCandidates, List<String> exactPlainCandidates, List<String> prefixPlainCandidates) {
+        private static boolean matchesEnchantment(Component line, Set<String> translatableCandidates, List<String> exactPlainCandidates) {
             val lineTranslatableKeys = collectTranslatableKeys(line);
             for (String key : translatableCandidates) {
                 if (lineTranslatableKeys.contains(key)) {
@@ -502,11 +476,6 @@ public class ItemStackTranslationUtils {
                     return true;
                 }
             }
-            for (String candidate : prefixPlainCandidates) {
-                if (plainLine.equals(candidate) || plainLine.startsWith(candidate + " ")) {
-                    return true;
-                }
-            }
             return false;
         }
 
@@ -517,16 +486,6 @@ public class ItemStackTranslationUtils {
                 addPlainCandidate(candidates, line);
             }
             addPlainCandidate(candidates, enchantment.getName().toString());
-            return candidates;
-        }
-
-        private static List<String> collectPrefixPlainCandidates(EnchantmentType enchantment) {
-            List<String> candidates = new ArrayList<>();
-            val path = enchantment.getName().getKey();
-            addPlainCandidate(candidates, path.replace('_', ' '));
-            if (path.endsWith("_curse")) {
-                addPlainCandidate(candidates, "curse of " + path.substring(0, path.length() - "_curse".length()).replace('_', ' '));
-            }
             return candidates;
         }
 

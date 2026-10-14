@@ -8,13 +8,16 @@ group = 'com.rexcantor64.triton'
 
 allprojects {
     apply plugin: 'java'
-    version = '4.0.2'
+    version = '4.2.0'
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(25)
         }
-        sourceCompatibility = JavaVersion.VERSION_25
-        targetCompatibility = JavaVersion.VERSION_25
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
     }
     repositories {
         mavenLocal()
@@ -73,6 +76,7 @@ dependencies {
     implementation project(':triton-velocity:triton-velocity-loader')
 
     compileOnly project(':core')
+    compileOnly project(':api:api-impl')
     compileOnly project(':triton-bungeecord')
     compileOnly project(':triton-spigot')
     compileOnly project(':triton-velocity')
@@ -82,7 +86,7 @@ shadowJar {
     getArchiveBaseName().set(rootProject.name)
 
     // Include .jarinjar files in the final build
-    def modules = [':core', ':triton-bungeecord', ':triton-spigot', ':triton-velocity']
+    def modules = [':core', ':api:api-impl', ':triton-bungeecord', ':triton-spigot', ':triton-velocity']
     modules.each { path ->
         def moduleProject = project(path)
         moduleProject.afterEvaluate {
