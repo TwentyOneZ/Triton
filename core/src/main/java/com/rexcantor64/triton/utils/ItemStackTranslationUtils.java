@@ -14,6 +14,7 @@ import com.github.retrooper.packetevents.protocol.item.enchantment.type.Enchantm
 import com.github.retrooper.packetevents.util.Filterable;
 import com.rexcantor64.triton.Triton;
 import com.rexcantor64.triton.api.language.Localized;
+import com.rexcantor64.triton.api.players.LanguagePlayer;
 import com.rexcantor64.triton.api.language.TranslationManager;
 import com.rexcantor64.triton.config.MainConfig;
 import com.rexcantor64.triton.language.parser.MessageParser;
@@ -49,9 +50,15 @@ public class ItemStackTranslationUtils {
     private final @NotNull MainConfig.FeatureSyntax syntax;
     private final boolean translateBooks;
     private final @Nullable TranslationManager translations;
+    private final @NotNull List<String> recoverHiddenTooltipsFor;
 
     public ItemStackTranslationUtils(MessageParser parser, MainConfig.FeatureSyntax syntax, boolean translateBooks) {
-        this(parser, syntax, translateBooks, Triton.get() == null ? null : Triton.get().getTranslationManager());
+        this(parser, syntax, translateBooks, Triton.get() == null ? null : Triton.get().getTranslationManager(),
+                Triton.get() == null ? List.of() : Triton.get().getConfig().getRecoverHiddenEnchantmentTooltipsFor());
+    }
+
+    public ItemStackTranslationUtils(MessageParser parser, MainConfig.FeatureSyntax syntax, boolean translateBooks, TranslationManager translations) {
+        this(parser, syntax, translateBooks, translations, List.of());
     }
 
     public ModifiableItemStack translateItem(ItemStack item, Localized locale) {
@@ -249,7 +256,7 @@ public class ItemStackTranslationUtils {
             return false;
         }
 
-        boolean visible = isEnchantmentComponentVisible(item, componentType, enchantments);
+        boolean visible = isEnchantmentComponentVisible(item, componentType, enchantments, locale);
         if (!visible) {
             return false;
         }
@@ -266,6 +273,9 @@ public class ItemStackTranslationUtils {
             destination.addAll(translatedLines);
         }
 
+        if (usesTooltipDisplay() && isComponentHiddenInTooltipDisplay(item, componentType)) {
+            return true;
+        }
         if (!hideComponentInTooltipDisplay(item, componentType)) {
             item.willModify().setComponent(
                     componentType,
@@ -294,14 +304,16 @@ public class ItemStackTranslationUtils {
         return translatedLines;
     }
 
-    private boolean isEnchantmentComponentVisible(ModifiableItemStack item, ComponentType<ItemEnchantments> componentType, ItemEnchantments enchantments) {
+    private boolean isEnchantmentComponentVisible(ModifiableItemStack item, ComponentType<ItemEnchantments> componentType, ItemEnchantments enchantments, Localized locale) {
+        boolean recover = locale instanceof LanguagePlayer player
+                && recoverHiddenTooltipsFor.contains(player.getUUID().toString());
         if (usesTooltipDisplay()) {
-            return !isComponentHiddenInTooltipDisplay(item, componentType)
+            return (recover || !isComponentHiddenInTooltipDisplay(item, componentType))
                     && !isComponentHiddenInTooltipDisplay(item, ComponentTypes.LORE)
                     && !getCurrentComponent(item, ComponentTypes.TOOLTIP_DISPLAY)
                     .map(ItemTooltipDisplay::isHideTooltip).orElse(false);
         }
-        return enchantments.isShowInTooltip();
+        return recover || enchantments.isShowInTooltip();
     }
 
     private boolean hideComponentInTooltipDisplay(ModifiableItemStack item, ComponentType<?> componentType) {

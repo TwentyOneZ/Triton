@@ -275,3 +275,7 @@ language-creation:
   # This prevents infinite loops where the 404 message has a missing placeholder.
   # Default is 10
   max-placeholders-in-message: 10
+
+# Explicit UUID opt-in: regenerate hidden enchantment lore in outgoing PacketEvents items.
+# Does not modify stored items; whole-tooltip and lore hiding still take precedence.
+recover-hidden-enchantment-tooltips-for: []

@@ -107,3 +107,16 @@ Para investigar sem reload, consulte `triton loglevel`, ative `triton loglevel 2
 Os pontos adicionais principais são `core/.../utils/ItemStackTranslationUtils.java`, `core/.../packetinterceptor/handlers/ItemPacketHandler.java`, `PacketEventsListener.java`, os diagnósticos em `triton-spigot/.../utils/ItemStackTranslationUtils.java` e `WrappedPatchedDataComponentMap.java`. Os testes estão em `ItemStackTranslationUtilsTest` e `ItemPacketHandlerTest`.
 
 Mantenha o merge de histórico e execute a suíte após atualizar PacketEvents, Adventure, ProtocolLib ou Paper. Revise especialmente visibilidade de tooltips, a API de custos comerciais e a camada relocada. Retire o contorno de `getSecondInputCost()` somente depois de comprovar a correção da dependência e manter a regressão das duas entradas passando. Não versione caches, diretórios `bin` nem JARs gerados.
+
+## Recuperação persistente de tooltips (2026-10-15)
+
+A recuperação manual de visibilidade não resolveu itens que voltam a carregar `ENCHANTMENTS` oculto após reiniciar. O PacketEvents agora aceita uma lista explícita de UUIDs em `recover-hidden-enchantment-tooltips-for`. Para esses destinatários, recria as linhas ausentes a partir dos encantamentos reais em cada envio; o item persistido continua intacto. A lista fica vazia por padrão. Tooltip inteiro e lore explicitamente ocultos continuam respeitados; outros destinatários conservam o comportamento normal. A recuperação funciona em inventários, livros, ofertas comerciais e receitas que passam pelo tradutor compartilhado.
+
+```yaml
+recover-hidden-enchantment-tooltips-for:
+  - "UUID-DO-JOGADOR"
+```
+
+O JAR desta correção usa `4.2.0-fork.1` para distinguir a instalação do build anterior. A regressão cobre novos tradutores após reinicialização, múltiplos componentes, ausência de duplicação, isolamento por destinatário e preservação dos componentes originais.
+
+Validação desta correção: 146 testes aprovados e um teste upstream desativado; `clean test build` completo. Duas inicializações consecutivas no Paper 26.3 isolado recuperaram a armadura oculta e preservaram os bytes originais nos cinco idiomas. Em produção, backup do JAR anterior e configuração, upload pelo painel HTTPS autenticado (SFTP sem chave de host conhecida), comparação byte a byte e restart autorizado. SHA-256 do JAR `4.2.0-fork.1`: `f0596e4c49875451c0fcd404968ed718550e537788bb2d64278c43ed9a5ac377`.
