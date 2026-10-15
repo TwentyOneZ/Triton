@@ -164,6 +164,44 @@ class ItemStackTranslationUtilsTest {
     }
 
     @Test
+    void recoversHiddenTooltipsOnlyForConfiguredPlayersAcrossFreshTranslators() {
+        String uuid = "fb88dd27-c2a0-3296-8ce7-9bdd93d5692c";
+        Localized player = (Localized) Proxy.newProxyInstance(Localized.class.getClassLoader(),
+                new Class<?>[]{com.rexcantor64.triton.api.players.LanguagePlayer.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getUUID" -> java.util.UUID.fromString(uuid);
+                    case "getLanguageId" -> "pt_BR";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        for (var type : List.of(ComponentTypes.ENCHANTMENTS, ComponentTypes.STORED_ENCHANTMENTS)) {
+            ItemStack original = enchanted(type, Map.of(EnchantmentTypes.SHARPNESS, 5));
+            original.unsetComponent(ComponentTypes.LORE);
+            ItemTooltipDisplay hidden = new ItemTooltipDisplay(false, Set.of(type, ComponentTypes.ATTRIBUTE_MODIFIERS));
+            original.setComponent(ComponentTypes.TOOLTIP_DISPLAY, hidden);
+            for (int restart = 0; restart < 2; restart++) {
+                var translator = new ItemStackTranslationUtils(new MockAdventureParser(), new DefaultFeatureSyntax(),
+                        false, null, List.of(uuid));
+                var translated = translator.translateItem(original, player).getModified();
+                assertNotNull(translated);
+                assertEquals(1, lore(translated).size());
+                assertEquals(original.getComponent(type), translated.getComponent(type));
+                assertEquals(hidden, translated.getComponent(ComponentTypes.TOOLTIP_DISPLAY).orElseThrow());
+                assertFalse(translator.translateItem(translated, player).isModified());
+                assertFalse(translator.translateItem(original, locale).isModified());
+                assertFalse(handler.translateItem(original, player).isModified());
+                assertTrue(original.getComponent(ComponentTypes.LORE).isEmpty());
+                assertEquals(hidden, original.getComponent(ComponentTypes.TOOLTIP_DISPLAY).orElseThrow());
+                for (var display : List.of(new ItemTooltipDisplay(true, Set.of(type)),
+                        new ItemTooltipDisplay(false, Set.of(type, ComponentTypes.LORE)))) {
+                    ItemStack privateItem = original.copy();
+                    privateItem.setComponent(ComponentTypes.TOOLTIP_DISPLAY, display);
+                    assertFalse(translator.translateItem(privateItem, player).isModified());
+                }
+            }
+        }
+    }
+
+    @Test
     void keepsOriginallyHiddenTrimmedArmorWithoutLoreHidden() {
         ItemStack original = ItemStack.builder().type(ItemTypes.GOLDEN_CHESTPLATE).build();
         ArmorTrim trim = new ArmorTrim(TrimMaterials.RESIN, TrimPatterns.SILENCE);

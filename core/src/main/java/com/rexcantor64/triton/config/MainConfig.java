@@ -79,6 +79,7 @@ public class MainConfig implements TritonConfig {
     private FeatureSyntax tabSyntax;
     private boolean items;
     private boolean inventoryItems;
+    private List<String> recoverHiddenEnchantmentTooltipsFor = new ArrayList<>();
     private boolean books;
     private FeatureSyntax itemsSyntax;
     private boolean signs;
@@ -193,6 +194,7 @@ public class MainConfig implements TritonConfig {
         this.runLanguageCommandsOnLogin = section.getBoolean("run-language-commands-on-join", false);
         this.alwaysCheckClientLocale = section.getBoolean("force-client-locale-on-join", false);
         this.logLevel = section.getInt("log-level", 0);
+        this.recoverHiddenEnchantmentTooltipsFor = section.getStringList("recover-hidden-enchantment-tooltips-for");
         this.configAutoRefresh = section.getInt("config-auto-refresh-interval", -1);
         this.asyncProtocolLib = section.getBoolean("experimental-async-protocol-lib", false);
         this.usePacketEvents = section.getBoolean("experimental-use-packetevents", false);
